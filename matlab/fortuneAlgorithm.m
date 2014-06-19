@@ -36,6 +36,8 @@ while length(site_point_events)>0
        if  circle_events(1).y>site_point_events(1).y
            % handle circle event
            [circle_events, arc_list, v] = handleCircleEvent(circle_events(1), site_points, axis_scaling, arc_list, v);
+       else
+           break;
        end
     end
     
@@ -174,10 +176,12 @@ center.y = XX(2,1);
 % add eps 0.001
 radius = sqrt((center.x - pii.x).^2 + (center.y - pii.y).^2) + 0.001;
 
-circle_event(1).y = center.y-radius;
-circle_event(1).center = center;
-circle_event(1).radius = radius;
-circle_event(1).p = pjj;
+c.y = center.y-radius;
+c.center = center;
+c.radius = radius;
+c.p = pjj;
+
+circle_event = c;
 
 end
 

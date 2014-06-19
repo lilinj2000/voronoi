@@ -24,7 +24,7 @@ debug = 2;
 if debug
     selected_algorithm = 2;
     site_points_input = [ 7 7; 5 6; 6 2; 8 3];
-%     site_points_input = [ 7 7; 5 6; 6 2; 8 3; 5 8];
+%     site_points_input = [ 7 7; 5 6; 6 2; 8 3; 5 8; 6 10; 3 9; 6 20];
 end
 
 while true
@@ -45,6 +45,9 @@ while true
     if ~debug
         site_points_input = input('Please input site points [x1, y2; x2, y2; ...]:\n');
     end
+    
+    % unique the site points
+    site_opints_input = unique(site_points_input, 'rows');
     
     % check the input data
     if size(site_points_input, 1)<2 | size(site_points_input,2)~=2

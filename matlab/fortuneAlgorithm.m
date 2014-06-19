@@ -33,7 +33,7 @@ v = struct([]);
 % go through all the site events
 while length(site_point_events)>0
     while length(circle_events)> 0
-       if  circle_events.y>site_point_events.y
+       if  circle_events(1).y>site_point_events(1).y
            % handle circle event
            [circle_events, arc_list, v] = handleCircleEvent(circle_events(1), site_points, axis_scaling, arc_list, v);
        end
@@ -50,8 +50,6 @@ end
 
 function [circle_events, arc_list] = handleSiteEvent(p, site_points, axis_scaling, arc_list_input, v)
 
-circle_events = struct([]);
-
 arc_list = arc_list_input;
 
 % add the site point arc to tree
@@ -66,20 +64,7 @@ end
 arc_list = arc_list(idx);
 
 % check circle events
-for ii = 2 : length(arc_list) - 1
-    
-    c = checkCircle(arc_list(ii-1), arc_list(ii), arc_list(ii+1));
-    
-%     found the circel event
-    if length(c)~=0
-%         add the circle event
-        if length(circle_events)~=0
-            circle_events(length(circle_events) +1) = c;
-        else
-            circle_events = c;
-        end
-    end
-end
+circle_events = checkCircleEvents(arc_list);
 
 % sort the circle events by y- descending
 if length(circle_events)~=0
@@ -95,7 +80,6 @@ end
 
 function [circle_events, arc_list, V] = handleCircleEvent(c, site_points, axis_scaling, arc_list_input, v)
 
-circle_events = struct([]);
 arc_list = arc_list_input;
 V = v;
 
@@ -119,12 +103,37 @@ else
     V = c.center;
 end
 
+% check circel events
+circle_events = checkCircleEvents(arc_list);
+
 end
+
+function circle_events = checkCircleEvents(arc_list)
+
+circle_events = struct([]);
+
+    for ii = 2 : length(arc_list) - 1
+
+        c = checkCircle(arc_list(ii-1), arc_list(ii), arc_list(ii+1));
+
+    %     found the circel event
+        if length(c)~=0
+    %         add the circle event
+            if length(circle_events)~=0
+                circle_events(length(circle_events) +1) = c;
+            else
+                circle_events = c;
+            end
+        end
+    end
+
+end
+
 
 function circle_event = checkCircle(pii, pjj, pkk)
 
-% init circle center & radius
-circle_event = struct();
+% set the circle_event is empty
+circle_event = struct([]);
 
 % x1 + x2
 A = pii.x + pjj.x;
@@ -146,22 +155,29 @@ G = pjj.y - pii.y;
 % y3 - y2
 H = pkk.y - pjj.y;
 
-if (G==0 & H==0) | (C==0 & D==0) | (G.*D == H.*C)
-%   k is 0, or the k is equal
+if G.*D == H.*C
+%   the k is equal
 %   no circle
     return ;
 end
 
-center.x = (D.*B./(2.*H) - C.*A./(2.*G) + F./2 - E./2)./(D./H - C./G);
-center.y = ((A-B)./2 + G.*E./(2.*C) - H.*F./(2.*D))./(G./C - H./D);
+AA = [ 2.*C, 2.*G; 2.*D, 2.*H];
+BB = [ A.*C + E.*G; B.*D + F.*H];
 
-% add eps
+XX = AA\BB;
+
+center.x = XX(1,1);
+center.y = XX(2,1);
+% center.x = (D.*B./(2.*H) - C.*A./(2.*G) + F./2 - E./2)./(D./H - C./G);
+% center.y = ((A-B)./2 + G.*E./(2.*C) - H.*F./(2.*D))./(G./C - H./D);
+
+% add eps 0.001
 radius = sqrt((center.x - pii.x).^2 + (center.y - pii.y).^2) + 0.001;
 
-circle_event.y = center.y-radius;
-circle_event.center = center;
-circle_event.radius = radius;
-circle_event.p = pjj;
+circle_event(1).y = center.y-radius;
+circle_event(1).center = center;
+circle_event(1).radius = radius;
+circle_event(1).p = pjj;
 
 end
 

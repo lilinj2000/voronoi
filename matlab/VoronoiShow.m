@@ -15,12 +15,16 @@
 % axis_scaling          -- the scaling for the x- and y-axes    
 % selected_algorithm    -- half-plane or fortune algorithm
 
+clear;
+clc;
+
 % just for debug info
 debug = 2;
 
 if debug
     selected_algorithm = 2;
     site_points_input = [ 7 7; 5 6; 6 2; 8 3];
+%     site_points_input = [ 7 7; 5 6; 6 2; 8 3; 5 8];
 end
 
 while true

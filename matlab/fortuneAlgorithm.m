@@ -1,138 +1,150 @@
-function fortuneAlgorithm(p, r)
+function fortuneAlgorithm(site_points, axis_scaling)
 % FORTUNEALGORITHM demonstrate the seeping line algorithm for Voronoi
 % diagram
 % Function FORTUNEALGORITHM demonstrate the seeping line algorithm on
 % voronoi diagram which site points is p, and the 2-D x- and y- axes is r
 % 
 % Define variables:
-% p     -- site points
-% r     -- the scaling for the x- and y-axes    
-% c     -- circle events by y- axes descending
-%           y, centerX, centerY, radius, piiX, piiY
-% t     -- arc tree, by x- axes ascending
-% v     -- voronoi vertex
-% e     -- voronoi edge
+% site_points        -- site points from input
+% site_points_event  -- site point events by y- axes descending
+% axis_scaling       -- the scaling for the x- and y-axes    
+% circle_events      -- circle events by y- axes descending 
+% arc_list           -- arc tree, by x- axes ascending
 % Record Of revisions:
 % Date Programmer Description of change
 % ======== ============== ========================
 % 6/16/2014 Linjiang Li Original code
 % 6/17/2014 LinJIang Li handleSiteEvent
+% 6/19/2014 LinJiang Li update the var name
 
-% sort the site points which in descending order on y axes
-p = sortrows(p, -2);
+% the site point events is site points in descending order on y axes
+[~, idx] = sort([site_points.y], 'descend');
+site_point_events = site_points(idx);
 
 % init circle event
-c = [];
+circle_events = struct([]);
 
 % init arc tree
-t = [];
+arc_list = struct([]);
 
 % init vertex
-v = [];
+v = struct([]);
 
 % go through all the site events
-for ii = 1:size(p,1)
-    while size(c, 1)> 0
-       if  c(1, 1)>p(ii, 2)
+while length(site_point_events)>0
+    while length(circle_events)> 0
+       if  circle_events.y>site_point_events.y
            % handle circle event
-           [c, t, v] = handleCircleEvent(c(1, :), p, r, t, v);
+           [circle_events, arc_list, v] = handleCircleEvent(circle_events(1), site_points, axis_scaling, arc_list, v);
        end
     end
     
 %     handle site event
-    [c, t] = handleSiteEvent(p(ii, :), p, r, t, v);
-  
+    [circle_events, arc_list] = handleSiteEvent(site_point_events(1), site_points, axis_scaling, arc_list, v);
+%      remove the site point event
+    site_point_events(1) = [];
 end
-
-% axis(r);
-
-% hold off
 
 end
 
 
-function [C, T] = handleSiteEvent(pii, p, r, t, v)
+function [circle_events, arc_list] = handleSiteEvent(p, site_points, axis_scaling, arc_list_input, v)
 
-C = [];
+circle_events = struct([]);
 
-T = t;
+arc_list = arc_list_input;
 
 % add the site point arc to tree
-T(size(T,1)+1, :) = pii;
+if length(arc_list)~=0
+    arc_list(length(arc_list)+1) = p;
+else
+    arc_list = p;
+end
+
 % sort the arc tree by x- ascending
-T = sortrows(T, 1);
+[~, idx] = sort( [arc_list.x] );
+arc_list = arc_list(idx);
 
 % check circle events
-for ii = 2 : size(T,1)-1
+for ii = 2 : length(arc_list) - 1
     
-    c = checkCircle(T(ii-1, :), T(ii, :), T(ii+1, :));
+    c = checkCircle(arc_list(ii-1), arc_list(ii), arc_list(ii+1));
     
 %     found the circel event
-    if size(c,1)~=0
+    if length(c)~=0
 %         add the circle event
-        C(size(C, 1)+1, :) = c;
+        if length(circle_events)~=0
+            circle_events(length(circle_events) +1) = c;
+        else
+            circle_events = c;
+        end
     end
 end
 
 % sort the circle events by y- descending
-if size(C,1)~=0
-    C = sortrows(C, -2);
+if length(circle_events)~=0
+    [~, idx] = sort( [circle_events.y], 'descend');
+    circle_events = circle_events(idx);
 end
 
-showFigure(p, r, pii(1,2), T, [], v);
+showFigure(site_points, axis_scaling, p.y, arc_list, [], v);
 
 waitforbuttonpress;
 
 end
 
-function [C, T, V] = handleCircleEvent(c, p, r, t, v)
+function [circle_events, arc_list, V] = handleCircleEvent(c, site_points, axis_scaling, arc_list_input, v)
 
-C = [];
-T = t;
+circle_events = struct([]);
+arc_list = arc_list_input;
 V = v;
 
-showFigure(p, r, c(1,1), t, c, v);
+showFigure(site_points, axis_scaling, c.y, arc_list, c, v);
 waitforbuttonpress
 
 % remove the site points from arc tree
-for ii = 1:size(T,1)
-    if T(ii, :)==[c(1,5), c(1,6)]
+for ii = 1:length(arc_list)
+    if [arc_list(ii).x arc_list(ii).y]==[c.p.x c.p.y]
 %         remove the arc from tree
-        T(ii, :) = [];
+        arc_list(ii) = [];
         break;
     end
 end
 
 % add new vertex for the voronoi
 % the center of the circle, just the vertex
-V(size(V, 1)+1, :) = [c(1,2), c(1,3)];
+if length(V)~=0
+    V(length(V)+1)  = c.center;
+else
+    V = c.center;
+end
 
 end
 
-function c = checkCircle(pii, pjj, pkk)
+function circle_event = checkCircle(pii, pjj, pkk)
 
 % init circle center & radius
-c = [];
+circle_event = struct();
 
 % x1 + x2
-A = pii(1,1) + pjj(1,1);
+A = pii.x + pjj.x;
 % x2 + x3
-B = pjj(1,1) + pkk(1,1);
+B = pjj.x + pkk.x;
 
 % x2 - x1
-C = pjj(1,1) - pii(1,1);
+C = pjj.x - pii.x;
 % x3 - x2
-D = pkk(1,1) - pjj(1,1);
+D = pkk.x - pjj.x;
 
 % y1 + y2
-E = pii(1,2) + pjj(1,2);
+E = pii.y + pjj.y;
 % y2 + y3
-F = pjj(1,2) + pkk(1,2);
+F = pjj.y + pkk.y;
 
 % y2 - y1
-G = pjj(1,2) - pii(1,2);
+G = pjj.y - pii.y;
 % y3 - y2
-H = pkk(1,2) - pjj(1,2);
+H = pkk.y - pjj.y;
 
 if (G==0 & H==0) | (C==0 & D==0) | (G.*D == H.*C)
 %   k is 0, or the k is equal
@@ -140,16 +152,20 @@ if (G==0 & H==0) | (C==0 & D==0) | (G.*D == H.*C)
     return ;
 end
 
-center(1, 1) = (D.*B./(2.*H) - C.*A./(2.*G) + F./2 - E./2)./(D./H - C./G);
-center(1, 2) = ((A-B)./2 + G.*E./(2.*C) - H.*F./(2.*D))./(G./C - H./D);
+center.x = (D.*B./(2.*H) - C.*A./(2.*G) + F./2 - E./2)./(D./H - C./G);
+center.y = ((A-B)./2 + G.*E./(2.*C) - H.*F./(2.*D))./(G./C - H./D);
 
-radius = sqrt((center(1, 1) - pii(1,1)).^2 + (center(1,2) - pii(1,2)).^2) + 0.001;
+% add eps
+radius = sqrt((center.x - pii.x).^2 + (center.y - pii.y).^2) + 0.001;
 
-c = [ center(1,2)-radius, center, radius, pjj ];
+circle_event.y = center.y-radius;
+circle_event.center = center;
+circle_event.radius = radius;
+circle_event.p = pjj;
 
 end
 
-function showFigure(p, r, y, t, c, v)
+function showFigure(site_points, axis_scaling, y, arc_list, circle_event, v)
 
 % one new figure
 figure;
@@ -157,36 +173,39 @@ figure;
 hold on;
 
 % plot the site points
-plot(p(:,1), p(:, 2), 'bx');
+plot([site_points.x], [site_points.y], 'bx');
 
 % plot the sweep line
-x = r(1) : 0.01 : r(2);
+x = linspace(axis_scaling.xmin, axis_scaling.xmax, 1000);
 plot(x, y);
 
 % plot the arc
-for ii = 1 : size(t,1)
-    if t(ii, 2)~= y
-        drawParabola(t(ii, :), y, r);
+for ii = 1 : length(arc_list)
+    if arc_list(ii).y~= y
+        drawParabola(arc_list(ii), y, axis_scaling);
     end
 end
 
 % plot the circle
-if size(c,1)~=0
-    radius = c(1,4);
-    x = linspace(c(1,2)- radius, c(1,2) + radius, 1000);
-    y1 = sqrt(radius.^2-(x-c(1,2)).^2) + c(1,3);
-    y2 = -1.*sqrt(radius.^2-(x-c(1,2)).^2) + c(1,3);
-    plot(x, y1, x, y2);
+if length(circle_event)~=0
+    
+    radius = circle_event.radius;
+    center = circle_event.center;
+    
+    x = linspace(center.x- radius, center.x + radius, 1000);
+    y1 = sqrt(radius.^2-(x-center.x).^2) + center.y;
+    y2 = -sqrt(radius.^2-(x-center.x).^2) + center.y;
+    plot(x, y1, 'b-', x, y2, 'b-');
 end
 
 % plot the vertex
-if size(v, 1)~=0
-plot(v(:, 1), v(:, 2), 'r^');
+if length(v)~=0
+    plot( [v.x], [v.y], 'r^');
 end
 
 
 % set the x- and y- axes
-axis(r);
+axis([axis_scaling.xmin axis_scaling.xmax axis_scaling.ymin axis_scaling.ymax]);
 
 hold off;
 

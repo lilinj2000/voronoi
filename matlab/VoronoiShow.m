@@ -7,17 +7,29 @@
 % Date Programmer Description of change
 % ==== ========= ================
 % 6/16/2014 Linjiang Li Original code
+% 6/18/2014 Linjiang Li update the var name
 %
 % Define variables:
-% p     -- site points
-% r     -- the scaling for the x- and y-axes    
-% selectedAlgorithm -- half-plane or Fortune algorithm
+% site_points_input     -- input the site pionts
+% site_points           -- site points for struct
+% axis_scaling          -- the scaling for the x- and y-axes    
+% selected_algorithm    -- half-plane or fortune algorithm
 
+% just for debug info
+debug = 2;
+
+if debug
+    selected_algorithm = 2;
+    site_points_input = [ 7 7; 5 6; 6 2; 8 3];
+end
 
 while true
-%     selectedAlgorithm = input('Please select the demonstrate algorithm: \n 1 - half-plane algorithm \n 2 - fortune algorithm \n');
-    selectedAlgorithm = 2;
-    if selectedAlgorithm~=1 & selectedAlgorithm~=2
+    
+    if ~debug
+        selected_algorithm = input('Please select the demonstrate algorithm: \n 1 - half-plane algorithm \n 2 - fortune algorithm \n');
+    end
+    
+    if selected_algorithm~=1 & selected_algorithm~=2
         disp('invalid input !!!');
     else
         break;
@@ -26,12 +38,12 @@ end
 
 % input site points
 while true
-%     p = input('Please input site points [x1, y2; x2, y2; ...]:\n');
-
-    p = [ 7 7; 5 6; 6 2; 8 3];
+    if ~debug
+        site_points_input = input('Please input site points [x1, y2; x2, y2; ...]:\n');
+    end
     
     % check the input data
-    if size(p, 1)<2 | size(p,2)~=2
+    if size(site_points_input, 1)<2 | size(site_points_input,2)~=2
         % site pionts less than 2
         % or the format is wrong (not the x, y axes)
         disp('the input invalid !!!');
@@ -40,31 +52,35 @@ while true
     end
 end
 
-% init the r [XMIN XMAX YMIN YMAX]
-r(1) = min(p(:, 1));
-r(2) = max(p(:, 1));
-r(3) = min(p(:, 2));
-r(4) = max(p(:, 2));
+% change the site points input for struct
+for ii = 1:size(site_points_input,1)
+    site_points(ii).x = site_points_input(ii, 1);
+    site_points(ii).y = site_points_input(ii, 2);
+end
+
+% calculate [XMIN XMAX YMIN YMAX]
+xmin = min([site_points.x]);
+xmax = max([site_points.x]);
+ymin = min([site_points.y]);
+ymax = max([site_points.y]);
 
 % set the expand ratio 0.25
-RATIO = 0.25;
+ratio = 0.25;
 % calculat the x- and y- axes delta
-deltaX = r(2) - r(1);
-deltaY = r(4) - r(3);
+delta_x = xmax - xmin;
+delta_y = ymax - ymin;
 % updat the R by the ratio
 % add 1 for prevent equal between min and max value
-r(1) = r(1) - deltaX.*RATIO - 1; 
-r(2) = r(2) + deltaX.*RATIO + 1;
-r(3) = r(3) - deltaY.*RATIO - 1;
-r(4) = r(4) + deltaY.*RATIO + 1;
+axis_scaling.xmin = xmin - delta_x.*ratio - 1; 
+axis_scaling.xmax = xmax + delta_x.*ratio + 1;
+axis_scaling.ymin = ymin - delta_y.*ratio - 1;
+axis_scaling.ymax = ymax + delta_y.*ratio + 1;
 
-
-
-if selectedAlgorithm==1
+if selected_algorithm==1
     % draw bisectors for the demonstrate site point
-    halfPlaneAlgorithm(p, r);
+    halfPlaneAlgorithm(site_points, axis_scaling);
 else
-    fortuneAlgorithm(p, r);
+    fortuneAlgorithm(site_points, axis_scaling);
 end
 
 

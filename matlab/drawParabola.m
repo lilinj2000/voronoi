@@ -1,10 +1,10 @@
-function drawParabola(pii, lineY, r)
+function drawParabola(p, line, axis_scaling)
 
-x = linspace(r(1), r(2), 1000);
+x = linspace(axis_scaling.xmin, axis_scaling.xmax, 1000);
 
 % (y-lineY).^2 = (x-pii(1,1)).^2 + (y-pii(1,2)).^2;
 
-y = ((x - pii(1,1)).^2 + pii(1,2).^2 - lineY.^2)./(2.*(pii(1,2)-lineY));
+y = ((x - p.x).^2 + p.y.^2 - line.^2)./(2.*(p.y-line));
 
 plot(x, y, 'k-');
 

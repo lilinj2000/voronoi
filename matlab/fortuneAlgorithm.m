@@ -47,6 +47,16 @@ while length(site_point_events)>0
     site_point_events(1) = [];
 end
 
+% handle the left circle events
+while length(circle_events)>0
+   % handle circle event
+   [circle_events, arc_list, v] = handleCircleEvent(circle_events(1), site_points, axis_scaling, arc_list, v);    
+end
+
+% finish all the arc list
+% last figure show
+% showFigure(site_points, axis_scaling, c.y, arc_list, c, v);
+
 end
 
 
@@ -55,14 +65,13 @@ function [circle_events, arc_list] = handleSiteEvent(p, site_points, axis_scalin
 arc_list = arc_list_input;
 
 % add the site point arc to tree
-if length(arc_list)~=0
-    arc_list(length(arc_list)+1) = p;
-else
-    arc_list = p;
-end
+arc_list(length(arc_list)+1).p = p;
 
 % sort the arc tree by x- ascending
-[~, idx] = sort( [arc_list.x] );
+% fetch all the points from arc list
+pp = [arc_list.p];
+% according the pp index, update the arc_list index
+[~, idx] = sort( [pp.x] );
 arc_list = arc_list(idx);
 
 % check circle events
@@ -90,7 +99,7 @@ waitforbuttonpress
 
 % remove the site points from arc tree
 for ii = 1:length(arc_list)
-    if [arc_list(ii).x arc_list(ii).y]==[c.p.x c.p.y]
+    if [arc_list(ii).p.x arc_list(ii).p.y]==[c.p.x c.p.y]
 %         remove the arc from tree
         arc_list(ii) = [];
         break;
@@ -114,9 +123,9 @@ function circle_events = checkCircleEvents(arc_list)
 
 circle_events = struct([]);
 
-    for ii = 2 : length(arc_list) - 1
-
-        c = checkCircle(arc_list(ii-1), arc_list(ii), arc_list(ii+1));
+    for ii = 2 : length(arc_list)-1
+        
+        c = checkCircle(arc_list(ii-1).p, arc_list(ii).p, arc_list(ii+1).p);
 
     %     found the circel event
         if length(c)~=0
@@ -192,8 +201,14 @@ figure;
 
 hold on;
 
+% the text axis offset by y
+text_axis_offset = 0.5;
+
 % plot the site points
-plot([site_points.x], [site_points.y], 'bx');
+for ii = 1:length(site_points)
+    plot(site_points(ii).x, site_points(ii).y, 'bx');
+    text(site_points(ii).x, site_points(ii).y + text_axis_offset, int2str(ii));
+end
 
 % plot the sweep line
 x = linspace(axis_scaling.xmin, axis_scaling.xmax, 1000);
@@ -201,8 +216,8 @@ plot(x, y);
 
 % plot the arc
 for ii = 1 : length(arc_list)
-    if arc_list(ii).y~= y
-        drawParabola(arc_list(ii), y, axis_scaling);
+    if arc_list(ii).p.y~= y
+        drawParabola(arc_list(ii).p, y, axis_scaling);
     end
 end
 
@@ -220,7 +235,7 @@ end
 
 % plot the vertex
 if length(v)~=0
-    plot( [v.x], [v.y], 'r^');
+    plot( [v.x], [v.y], 'ro');
 end
 
 

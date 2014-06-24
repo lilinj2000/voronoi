@@ -19,12 +19,12 @@ clear;
 clc;
 
 % just for debug info
-debug = 2;
+debug = 1;
 
 if debug
     selected_algorithm = 2;
     site_points_input = [ 7 7; 5 6; 6 2; 8 3];
-%     site_points_input = [ 7 7; 5 6; 6 2; 8 3; 5 8; 6 10; 3 9; 6 20];
+%     site_points_input = [ 7 7; 4 12; 5 10; 9 14; 10 9; 3 9; 6 20; 15 15; 12 13];
 end
 
 while true

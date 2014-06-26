@@ -50,7 +50,7 @@ while true
     site_opints_input = unique(site_points_input, 'rows');
     
     % check the input data
-    if size(site_points_input, 1)<2 | size(site_points_input,2)~=2
+    if size(site_points_input, 1)<2 || size(site_points_input,2)~=2
         % site pionts less than 2
         % or the format is wrong (not the x, y axes)
         disp('the input invalid !!!');

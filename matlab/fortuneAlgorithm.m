@@ -64,8 +64,10 @@ while ~isempty(circle_events)
 end
 
 % finish all the arc list
+seg_list = finishArcList(arc_list, seg_list, axis_scaling);
+
 % last figure show
-% showFigure(site_points, axis_scaling, c.y, arc_list, c, v);
+showFigure(site_points, axis_scaling, [], arc_list, [], seg_list);
 
 end
 
@@ -107,8 +109,8 @@ waitforbuttonpress
 % remove the circle event
 % [arc_list, circle_events] = removeCircleEvent(c, arc_list, circle_events);
 
-showFigure(site_points, axis_scaling, c.y, arc_list, [], seg_list);
-waitforbuttonpress
+% showFigure(site_points, axis_scaling, c.y, arc_list, [], seg_list);
+% waitforbuttonpress
 
 % add new vertex for the voronoi
 % the center of the circle, just the vertex
@@ -428,15 +430,10 @@ end
 arc_list(index).seg0.end_p = v;
 arc_list(index).seg1.end_p = v;
 
-% store the seg in seg list
-if isempty(seg_list)
-    seg_list = arc_list(index).seg0;
-else
-    seg_list(length(seg_list)+1) = arc_list(index).seg0;
-end
+seg_list = pushSeg(arc_list(index).seg0, seg_list);
+seg_list = pushSeg(arc_list(index).seg1, seg_list);
 
-% seg_list(length(seg_list)+1) = arc_list(index).seg0;
-seg_list(length(seg_list)+1) = arc_list(index).seg1;
+
 
 c = arc_list(index).circle_event;
 if ~isempty(c)
@@ -500,6 +497,40 @@ end
 
 end
 
+function seg_list = finishArcList(arc_list, seg_list_input, axis_scaling)
+
+seg_list = seg_list_input;
+
+y = axis_scaling.ymin - (axis_scaling.xmax-axis_scaling.xmin) - (axis_scaling.ymax-axis_scaling.ymin);
+
+while ~isempty(arc_list)
+    if ~isempty(arc_list(1).seg1)
+        node = intersection(arc_list(1).p, arc_list(2).p, y);
+        
+        arc_list(1).seg1.end_p = node;
+        
+        seg_list = pushSeg(arc_list(1).seg1, seg_list);    
+    end
+    
+    % remove the arc
+    arc_list(1) = [];
+end
+
+end
+
+function seg_list = pushSeg(seg, seg_list_input)
+
+seg_list = seg_list_input;
+
+% store the seg in seg list
+if isempty(seg_list)
+    seg_list = seg;
+else
+    seg_list(length(seg_list)+1) = seg;
+end
+
+end
+
 
 function showFigure(site_points, axis_scaling, y, arc_list, circle_event, seg_list)
 
@@ -519,7 +550,9 @@ end
 
 % plot the sweep line
 x = linspace(axis_scaling.xmin, axis_scaling.xmax, 1000);
-plot(x, y);
+if ~isempty(y)
+    plot(x, y);
+end
 
 % plot the arc
 for ii = 1 : length(arc_list)
@@ -551,7 +584,7 @@ end
 for ii = 1 : length(seg_list)
 %     plot the start & end point
     plot(seg_list(ii).start_p.x, seg_list(ii).start_p.y, 'ro');
-    plot(seg_list(ii).end_p.x, seg_list(ii).end_p.y, 'ro');
+    plot(seg_list(ii).end_p.x, seg_list(ii).end_p.y, 'r^');
     
     drawLine(seg_list(ii).start_p, seg_list(ii).end_p);
 end

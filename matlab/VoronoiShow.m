@@ -33,7 +33,7 @@ while true
         selected_algorithm = input('Please select the demonstrate algorithm: \n 1 - half-plane algorithm \n 2 - fortune algorithm \n');
     end
     
-    if selected_algorithm~=1 & selected_algorithm~=2
+    if selected_algorithm~=1 && selected_algorithm~=2
         disp('invalid input !!!');
     else
         break;

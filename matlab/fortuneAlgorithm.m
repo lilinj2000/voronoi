@@ -1,16 +1,12 @@
 function fortuneAlgorithm(site_points, axis_scaling)
-% FORTUNEALGORITHM demonstrate the seeping line algorithm for Voronoi
+% FORTUNEALGORITHM demonstrate the sweeping line algorithm for Voronoi
 % diagram
-% Function FORTUNEALGORITHM demonstrate the seeping line algorithm on
-% voronoi diagram which site points is p, and the 2-D x- and y- axes is r
+% Function FORTUNEALGORITHM which implement the sweeping line algorithm on
+% voronoi diagram and demo it on each step.
 % 
 % Define variables:
-% site_points        -- site points from input
-% site_points_event  -- site point events by y- axes descending
+% site_points        -- site points
 % axis_scaling       -- the scaling for the x- and y-axes    
-% circle_events      -- circle events by y- axes descending 
-% arc_list           -- arc tree, by x- axes ascending
-% seg_list           -- segement list
 % Record Of revisions:
 % Date Programmer Description of change
 % ======== ============== ========================
@@ -18,17 +14,32 @@ function fortuneAlgorithm(site_points, axis_scaling)
 % 6/17/2014 LinJIang Li handleSiteEvent
 % 6/19/2014 LinJiang Li update the var name
 % 6/26/2014 LinJiang Li fix the site event & circle event process
+% 6/26/2014 LinJiang Li full implement the algorithm
+% 6/27/2014 LinJiang Li fix the remove circle event bug
 
+% Internal variables:
+% site_points_event  -- site point events by y- axes descending
+% circle_events      -- circle events by y- axes descending 
+% arc_list           -- arc list, which store all the beach lines
+% seg_list           -- segement list
 
+% the internal struct is:
 % site_points { p(x,y) }
 % site_points_event { p(x,y) }
-% circle_events { y, center(x,y), radius, arc }
 % arc_list { p, seg0(start_p, end_p), seg1(start_p, end_p), circle_event }
+% circle_events { y, center(x,y), radius, arc }
 % seg_list { start_p, end_p, p}
+% start_p/end_p { x, y }
 
+% main steps:
+% 1. gen site events
+% 2. handle site events or handle circle events
+% 3. handle the left circle events
+% 4. finish the left arc list
 
-% the site point events is site points in descending order on y axes
+% sort site points by descending order on y axes
 [~, idx] = sort([site_points.y], 'descend');
+% gen site point events
 site_point_events = site_points(idx);
 
 % init circle event
@@ -42,18 +53,20 @@ seg_list = struct([]);
 
 % go through all the site events
 while ~isempty(site_point_events)
+    % go through all the circle events
     while ~isempty(circle_events)
        if  circle_events(1).y>site_point_events(1).y
-           % handle circle event
+           % on circle event
            [arc_list, circle_events, seg_list] = handleCircleEvent(circle_events(1), site_points, axis_scaling, arc_list, circle_events, seg_list);
        else
            break;
        end
     end
     
-%     handle site event
+    % on site event
     [arc_list, circle_events] = handleSiteEvent(site_point_events(1), site_points, axis_scaling, arc_list, circle_events, seg_list);
-%      remove the site point event
+    
+    % remove the site point event
     site_point_events(1) = [];
 end
 
@@ -63,7 +76,7 @@ while ~isempty(circle_events)
    [arc_list, circle_events, seg_list] = handleCircleEvent(circle_events(1), site_points, axis_scaling, arc_list, circle_events, seg_list);    
 end
 
-% finish all the arc list
+% finish all the left arc list
 seg_list = finishArcList(arc_list, seg_list, axis_scaling);
 
 % last figure show
@@ -71,19 +84,21 @@ showFigure(site_points, axis_scaling, [], arc_list, [], seg_list);
 
 end
 
-
+% process site event 
+% 1. init the output parameters
+% 2. addArc to arc list
+% 3. check & update circle events
 function [arc_list, circle_events] = handleSiteEvent(p, site_points, axis_scaling, arc_list_input, circle_events_input, seg_list)
 
+% init the output parameters
 arc_list = arc_list_input;
 circle_events = circle_events_input;
 
 % add arc
-[arc, arc_list] = addArc(p, arc_list, axis_scaling.ymax);
-
-% [arc_list, circle_events] = updateSegAfterAddArc(p, arc_list, circle_events);
+[arc_list, circle_events] = addArc(p, arc_list, circle_events, axis_scaling.ymax);
 
 % check & update circle events
-[arc_list, circle_events] = updateCircleEvents(arc, arc_list, circle_events);
+% [arc_list, circle_events] = updateCircleEvents(arc, arc_list, circle_events);
 
 showFigure(site_points, axis_scaling, p.y, arc_list, [], seg_list);
 
@@ -91,8 +106,12 @@ waitforbuttonpress;
 
 end
 
+% on circle event
+% 1. init output parameters
+% 2. remove Arc
 function [arc_list, circle_events, seg_list] = handleCircleEvent(c, site_points, axis_scaling, arc_list_input, circle_events_input, seg_list_input)
 
+% init output parameters
 arc_list = arc_list_input;
 circle_events = circle_events_input;
 seg_list = seg_list_input;
@@ -125,101 +144,59 @@ waitforbuttonpress
 
 end
 
-function [arc_list, circle_events] = updateCircleEvents(arc, arc_list_input, circle_events_input)
+function [arc_list, circle_events] = updateCircleEvent(index, arc_list_input, circle_events_input)
 
+% init the output parameters
 arc_list = arc_list_input;
 circle_events = circle_events_input;
 
-% check arc index
-index = findArc(arc, arc_list);
-if index>0
-%     do update circle events
-%  update index-2, index-1, index
 
-    for ii = index-2:index
-        if ii>0 && ii+2<=length(arc_list)
-    %         remove circle event from arc_list & circle_events
-            c = arc_list(ii+1).circle_event;
-            
-            if ~isempty(c)
-                [circle_events] = removeCircleEvent(c, circle_events);
-            end
-            arc_list(ii+1).circle_event = [];
+c = [];
+if index-1>0 && index+1<=length(arc_list)
+    c = checkCircle(arc_list(index-1).p, arc_list(index).p, arc_list(index+1).p);
+end
+        
+       
+if ~isempty(c)
+    c.arc = arc_list(index);
+    arc_list(index).circle_event = c;
     
-    %         has the circle events
-            c = checkCircle(arc_list(ii).p, arc_list(ii+1).p, arc_list(ii+2).p);
-            if ~isempty(c)
-                c.arc = arc_list(ii+1);
-                arc_list(ii+1).circle_event = c;
-                % add the full arc info for the circle_event
-                c.arc = arc_list(ii+1);
-                
-                circle_events = addCircleEvent(c, circle_events);
-            end
-        end
-    end
+    circle_events = addCircleEvent(c, circle_events);
+end
+        
+
+% check arc index
+% index = findArc(arc, arc_list);
+% if index>0
+% %     do update circle events
+% %  update index-2, index-1, index
+% 
+%     for ii = index-2:index
+%         if ii>0 && ii+2<=length(arc_list)
+%     %         remove circle event from arc_list & circle_events
+%             c = arc_list(ii+1).circle_event;
+%             
+%             if ~isempty(c)
+%                 [circle_events] = removeCircleEvent(c, circle_events);
+%             end
+%             arc_list(ii+1).circle_event = [];
+%     
+%     %         has the circle events
+%             c = checkCircle(arc_list(ii).p, arc_list(ii+1).p, arc_list(ii+2).p);
+%             if ~isempty(c)
+%                 c.arc = arc_list(ii+1);
+%                 arc_list(ii+1).circle_event = c;
+%                 % add the full arc info for the circle_event
+%                 c.arc = arc_list(ii+1);
+%                 
+%                 circle_events = addCircleEvent(c, circle_events);
+%             end
+%         end
+%     end
+% end
+
 end
 
-end
-
-
-function circle_event = checkCircle(pii, pjj, pkk)
-
-% set the circle_event is empty
-circle_event = struct([]);
-
-% ensure edge pii-pjj on the left pii-pkk
-if (pkk.y-pii.y).*(pjj.x-pii.x) - (pjj.y-pii.y).*(pkk.x-pii.x)>0
-    return ;
-end
-
-% x1 + x2
-A = pii.x + pjj.x;
-% x2 + x3
-B = pjj.x + pkk.x;
-
-% x2 - x1
-C = pjj.x - pii.x;
-% x3 - x2
-D = pkk.x - pjj.x;
-
-% y1 + y2
-E = pii.y + pjj.y;
-% y2 + y3
-F = pjj.y + pkk.y;
-
-% y2 - y1
-G = pjj.y - pii.y;
-% y3 - y2
-H = pkk.y - pjj.y;
-
-if G.*D == H.*C
-%   the k is equal
-%   no circle
-    return ;
-end
-
-AA = [ 2.*C, 2.*G; 2.*D, 2.*H];
-BB = [ A.*C + E.*G; B.*D + F.*H];
-
-XX = AA\BB;
-
-center.x = XX(1,1);
-center.y = XX(2,1);
-% center.x = (D.*B./(2.*H) - C.*A./(2.*G) + F./2 - E./2)./(D./H - C./G);
-% center.y = ((A-B)./2 + G.*E./(2.*C) - H.*F./(2.*D))./(G./C - H./D);
-
-% add eps 0.001
-radius = sqrt((center.x - pii.x).^2 + (center.y - pii.y).^2) + 0.001;
-
-c.y = center.y-radius;
-c.center = center;
-c.radius = radius;
-c.p = pjj;
-
-circle_event = c;
-
-end
 
 function node = intersect(p, index, arc_list)
 
@@ -274,10 +251,80 @@ node.y = ((p.x-node.x).^2 + p.y.^2 - l.^2)./(2.*(p.y-l));
 
 end
 
+function circle_event = checkCircle(pii, pjj, pkk)
 
-function [arc, arc_list] = addArc(p, arc_list_input, ymax)
+% set the circle_event is empty
+circle_event = struct([]);
 
+% ensure edge pii-pjj on the left pii-pkk
+if (pkk.y-pii.y)*(pjj.x-pii.x) - (pjj.y-pii.y)*(pkk.x-pii.x)>0
+    return ;
+end
+
+% x1 + x2
+A = pii.x + pjj.x;
+% x2 + x3
+B = pjj.x + pkk.x;
+
+% x2 - x1
+C = pjj.x - pii.x;
+% x3 - x2
+D = pkk.x - pjj.x;
+
+% y1 + y2
+E = pii.y + pjj.y;
+% y2 + y3
+F = pjj.y + pkk.y;
+
+% y2 - y1
+G = pjj.y - pii.y;
+% y3 - y2
+H = pkk.y - pjj.y;
+
+if G*D == H*C
+%   the k is equal
+%   no circle
+    return ;
+end
+
+AA = [ 2.*C, 2.*G; 2.*D, 2.*H];
+BB = [ A.*C + E.*G; B.*D + F.*H];
+
+XX = AA\BB;
+
+center.x = XX(1,1);
+center.y = XX(2,1);
+% center.x = (D.*B./(2.*H) - C.*A./(2.*G) + F./2 - E./2)./(D./H - C./G);
+% center.y = ((A-B)./2 + G.*E./(2.*C) - H.*F./(2.*D))./(G./C - H./D);
+
+% add eps 0.001
+radius = sqrt((center.x - pii.x).^2 + (center.y - pii.y).^2) + 0.001;
+
+c.y = center.y-radius;
+c.center = center;
+c.radius = radius;
+% c.p = pjj;
+
+circle_event = c;
+
+end
+
+
+% on site event, one new arc should be added.
+% example: p1 - p3 - p4 - p2 - p1
+% on p5 event: ===> p1 - p3 - (p4 - p5 - p4) - p2 - p1
+% main steps:
+% 1. init outpu parameters
+% 2. on the first arc, just add it, and return.
+% 3. check intersect, and insert the right position
+% 4. remove the false alarm for circle event
+% 5. update prev.seg1 & arc.seg0 & arc.seg1 & post.seg0
+% 6. update circle events for prev & post
+function [arc_list, circle_events] = addArc(p, arc_list_input, circle_events_input, ymax)
+
+% init output parameters
 arc_list = arc_list_input;
+circle_events = circle_events_input;
 
 % new arc
 arc.p = p;
@@ -285,6 +332,7 @@ arc.circle_event = [];
 arc.seg0 = [];
 arc.seg1 = [];
 
+% check whether the fist arc
 if isempty(arc_list)
     arc_list = arc;
     return ;
@@ -297,11 +345,13 @@ for ii=1:length(arc_list)
     if ~isempty(node)
         
         % remove this arc circle event, for it's false alarm
-%         if ~isempty(arc_list(ii).circle_event)
-%             c = arc_list(ii).circle_event ;
-%             arc_list(ii).circle_event = [];
-%             circle_events = removeCircleEvent(c, circle_events);
-%         end
+        % circle events update must before on the seg change.
+        if ~isempty(arc_list(ii).circle_event)
+            c = arc_list(ii).circle_event ;
+            arc_list(ii).circle_event = [];
+            circle_events = removeCircleEvent(c, circle_events);
+        end
+
         
         len = length(arc_list);
         arc_list(len+2:-1:ii+2) = arc_list(len:-1:ii);
@@ -312,11 +362,24 @@ for ii=1:length(arc_list)
         
         arc_list(ii+1) = arc;
         
-        %update the pre arc
+        %update the pre arc seg1
         arc_list(ii).seg1.start_p = node;
         
-        %update the post arc
+        %update the post arc seg0
         arc_list(ii+2).seg0.start_p = node;
+        
+        % check the circle event, for it's false alarm
+%         c = arc_list(ii).circle_event;
+%         if ~isempty(c)
+%             circle_events = removeCircleEvent(c, circle_events);
+%             
+%             arc_list(ii).circle_event = [];
+%             arc_list(ii+2).circle_event = [];
+%         end
+%         
+        % update the circle event for prev, and post
+        [arc_list, circle_events] = updateCircleEvent(ii, arc_list, circle_events);
+        [arc_list, circle_events] = updateCircleEvent(ii+2, arc_list, circle_events);
         
         
         return ;
@@ -331,6 +394,9 @@ arc.seg0.start_p = start_p;
 
 arc_list(ii).seg1.start_p = start_p;
 arc_list(ii+1) = arc;
+
+% check & update the prev arc, circle events.
+[arc_list, circle_events] = updateCircleEvent(ii, arc_list, circle_events);
 
 % add the site point arc to tree
 % if ~isempty(arc_list)
@@ -348,51 +414,68 @@ arc_list(ii+1) = arc;
 
 end
 
+function ok = equalArc(arc1, arc2)
+ok = 0;
+
+if isempty(arc1) || isempty(arc2)
+    return;
+end
+
+p_ok = 0;
+
+p1 = arc1.p;
+p2 = arc2.p;
+
+if p1.x==p2.x && p1.y==p2.y
+    p_ok = 1;
+end
+
+seg0_ok =0;
+
+% both of the seg0 is empty
+if isempty(arc1.seg0) && isempty(arc2.seg0) 
+    seg0_ok = 1;
+end
+
+% both of the seg0 is not empty
+if ~isempty(arc1.seg0) && ~isempty(arc2.seg0) 
+    start_p1 = arc1.seg0.start_p;
+    start_p2 = arc2.seg0.start_p;
+    % the start point equal
+    if start_p1.x==start_p2.x && start_p1.y==start_p2.y
+        seg0_ok = 1;
+    end
+end
+    
+    
+seg1_ok = 0;
+if (isempty(arc1.seg1) && isempty(arc2.seg1))
+    seg1_ok = 1;
+end
+
+if ~isempty(arc1.seg1) && ~isempty(arc2.seg1) 
+    start_p1 = arc1.seg1.start_p;
+    start_p2 = arc2.seg1.start_p;
+
+    if start_p1.x==start_p2.x && start_p1.y==start_p2.y
+        seg1_ok = 1;
+    end
+end
+
+
+if p_ok && seg0_ok && seg1_ok
+    ok = 1;
+end
+
+end
+
 function index = findArc(arc, arc_list)
 
 index = 0;
 
 for ii = 1:length(arc_list)
-    p = 0;
-    if [arc_list(ii).p.x arc_list(ii).p.y] == [arc.p.x arc.p.y]
-        p = 1;
-    end
     
-    seg0 = 0;
-    a.seg0 = arc.seg0;
-    b.seg0 = arc_list(ii).seg0;
-    
-    if isempty(a.seg0) && isempty(b.seg0) 
-        seg0 = 1;
-    end
-    
-    if ~isempty(a.seg0) && ~isempty(b.seg0) 
-        start_p1 = a.seg0.start_p;
-        start_p2 = b.seg0.start_p;
-        
-        if [start_p1.x start_p1.y]==[start_p2.x start_p2.y]
-            seg0 = 1;
-        end
-    end
-    
-    
-    seg1 = 0;
-    a.seg1 = arc.seg1;
-    b.seg1 = arc_list(ii).seg1;
-    if (isempty(a.seg1) && isempty(b.seg1))
-        seg1 = 1;
-    end
-    
-    if ~isempty(a.seg1) && ~isempty(b.seg1) 
-        start_p1 = a.seg1.start_p;
-        start_p2 = b.seg1.start_p;
-        
-        if [start_p1.x start_p1.y]==[start_p2.x start_p2.y]
-            seg1 = 1;
-        end
-    end
-    
-    if p && seg0 && seg1
+    if equalArc(arc, arc_list(ii))
         index = ii;
         break;
     end
@@ -400,30 +483,56 @@ end
 
 end
 
+% on circle event, should do remove arc
+% 1. init output parameters.
+% 2. find the right arc in list
+% 3. remove the circle event of the arc
+% 4. update the prev seg1 & post arc seg0
+% 5. finish the arc seg & push to seg list
+% 6. remove the arc
+% 7. check & update circle events
+
 function [arc_list circle_events seg_list] = removeArc(arc, arc_list_input, circle_events_input, seg_list_input, v)
 
+% init output parameters
 arc_list = arc_list_input;
 circle_events = circle_events_input;
 seg_list = seg_list_input;
 
 index=findArc(arc, arc_list);
-
 if index==0
+    disp('can''t find the arc on remove arc.');
     return
 end
 
-prev_arc = struct([]);
+% attentions: the false alarm for the circle events must be removed before
+% the seg change
 if index-1>0
-%     update the seg1 prev arc
+    % remove the false alarm of the circle events for the prev
+    c = arc_list(index-1).circle_event;
+    if ~isempty(c)
+        circle_events = removeCircleEvent(c, circle_events);
+    end
+    
+    % update the seg1 prev arc
     arc_list(index-1).seg1.start_p = v;
-    prev_arc = arc_list(index-1);
 end
 
-post_arc = struct([]);
 if index+1<=length(arc_list)
-%     update the post arc
+    % remove the false alarm of the circle events for the prev
+    c = arc_list(index+1).circle_event;
+    if ~isempty(c)
+        circle_events = removeCircleEvent(c, circle_events);
+    end
+    
+    % update the post arc
     arc_list(index+1).seg0.start_p = v;
-    post_arc = arc_list(index+1);
+end
+
+% remove the current circle events from list 
+c = arc_list(index).circle_event;
+if ~isempty(c)
+    circle_events = removeCircleEvent(c, circle_events);
 end
 
 % update the arc
@@ -433,22 +542,13 @@ arc_list(index).seg1.end_p = v;
 seg_list = pushSeg(arc_list(index).seg0, seg_list);
 seg_list = pushSeg(arc_list(index).seg1, seg_list);
 
-
-
-c = arc_list(index).circle_event;
-if ~isempty(c)
-    circle_events = removeCircleEvent(c, circle_events);
-end
-
+% remove the arc from list
 arc_list(index) = [];
 
-if ~isempty(prev_arc)
-    [arc_list, circle_events] = updateCircleEvents(prev_arc, arc_list, circle_events);
-end
-
-if ~isempty(post_arc)
-    [arc_list, circle_events] = updateCircleEvents(post_arc, arc_list, circle_events);
-end
+% the index point to the post arc now
+% check & update the prev & post arc circle event
+[arc_list, circle_events] = updateCircleEvent(index-1, arc_list, circle_events);
+[arc_list, circle_events] = updateCircleEvent(index, arc_list, circle_events);
 
 end
 
@@ -456,6 +556,10 @@ end
 function circle_events = addCircleEvent(c, circle_events_input)
 
 circle_events = circle_events_input;
+
+if isempty(c)
+    return ;
+end
 
 if ~isempty(circle_events)
     circle_events(length(circle_events)+1) = c;
@@ -469,20 +573,46 @@ end
 
 end
 
+function ok = equalCircleEvent(c1, c2)
+ok = 0;
+
+% any of the circle event is empty
+if isempty(c1) || isempty(c2)
+    return ;
+end
+
+if equalArc(c1.arc, c2.arc)
+    ok = 1;
+end
+
+end
+
 function index = findCircleEvent(circle_event, circle_events)
 index = 0;
 
-center = circle_event.center; 
-radius = circle_event.radius;
+if isempty(circle_event)
+    return ;
+end
 
 for ii = 1:length(circle_events)
-    c = circle_events(ii);
-    
-    if [center.x center.y radius] == [c.center.x c.center.y c.radius]
+    if equalCircleEvent(circle_event, circle_events(ii))
         index = ii;
         break;
     end
 end
+
+% center = circle_event.center; 
+% radius = circle_event.radius;
+% 
+% for ii = 1:length(circle_events)
+%     c = circle_events(ii);
+%     
+%     if center.x==c.center.x && center.y==c.center.y && radius==c.radius
+% %      if [center.x center.y radius]==[c.center.x c.center.y c.radius]
+%         index = ii;
+%         break;
+%     end
+% end
 
 end
 
@@ -493,6 +623,8 @@ circle_events = circle_events_input;
 index = findCircleEvent(circle_event, circle_events);
 if index>0
     circle_events(index) = [];
+else
+    disp('error on remove circle event');
 end
 
 end
@@ -501,7 +633,7 @@ function seg_list = finishArcList(arc_list, seg_list_input, axis_scaling)
 
 seg_list = seg_list_input;
 
-y = axis_scaling.ymin - (axis_scaling.xmax-axis_scaling.xmin) - (axis_scaling.ymax-axis_scaling.ymin);
+y = axis_scaling.ymin - (axis_scaling.xmax-axis_scaling.xmin).*2 - (axis_scaling.ymax-axis_scaling.ymin).*2;
 
 while ~isempty(arc_list)
     if ~isempty(arc_list(1).seg1)

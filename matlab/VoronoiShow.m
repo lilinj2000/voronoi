@@ -23,7 +23,16 @@ debug = 1;
 
 if debug
     selected_algorithm = 2;
-    site_points_input = [ 7 7; 5 6; 6 2; 8 3];
+    % two points
+    site_points_input = [ 7 6; 6 7 ];
+    
+    % three points
+%     site_points_input = [ 7 7; 5 6; 6 2 ];
+    
+    % more ponits
+%     site_points_input = [ 7 7; 5 6; 6 2; 8 3];
+    
+    % more and more points
 %     site_points_input = [ 7 7; 4 12; 5 10; 9 14; 10 9; 3 9; 6 20; 15 15; 12 13];
 end
 
@@ -60,6 +69,9 @@ while true
 end
 
 % change the site points input for struct
+site_points(size(site_points_input,1)).x = [];
+site_points(size(site_points_input,1)).y = [];
+
 for ii = 1:size(site_points_input,1)
     site_points(ii).x = site_points_input(ii, 1);
     site_points(ii).y = site_points_input(ii, 2);

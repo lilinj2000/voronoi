@@ -389,6 +389,8 @@ classdef VoronoiFortuneAlgo < handle
                     if ii-1>0
                         node = VoronoiFortuneAlgo.intersection(VFA.arc_list(ii-1).p, VFA.arc_list(ii).p, y);
                         xmin = node.x;
+                        
+                        VoronoiFortuneAlgo.drawLine(node, VFA.arc_list(ii).seg0.start_p, 'k-.');
                     else
                         xmin = VFA.axis_scaling.xmin;
                     end
@@ -396,6 +398,8 @@ classdef VoronoiFortuneAlgo < handle
                     if ii+1<=length(VFA.arc_list)
                         node = VoronoiFortuneAlgo.intersection(VFA.arc_list(ii).p, VFA.arc_list(ii+1).p, y);
                         xmax = node.x;
+                        
+                        VoronoiFortuneAlgo.drawLine(VFA.arc_list(ii).seg1.start_p, node, 'k-.');
                     else
                         xmax = VFA.axis_scaling.xmax;
                     end
@@ -428,7 +432,7 @@ classdef VoronoiFortuneAlgo < handle
                 % plot(VFA.seg_list(ii).start_p.x, VFA.seg_list(ii).start_p.y, 'ro');
                 plot(VFA.seg_list(ii).end_p.x, VFA.seg_list(ii).end_p.y, 'r^');
 
-                VoronoiFortuneAlgo.drawLine(VFA.seg_list(ii).start_p, VFA.seg_list(ii).end_p);
+                VoronoiFortuneAlgo.drawLine(VFA.seg_list(ii).start_p, VFA.seg_list(ii).end_p, 'r-');
             end
 
             % set the x- and y- axes
@@ -609,7 +613,7 @@ classdef VoronoiFortuneAlgo < handle
 
         end
         
-        function drawLine(start_p, end_p)
+        function drawLine(start_p, end_p, s)
 
             % y - y1 = (y2-y1)/(x2-x1)*(x-x1)
 
@@ -623,7 +627,7 @@ classdef VoronoiFortuneAlgo < handle
                 y = linspace(start_p.y, end_p.y, 1000);
             end
 
-            plot(x, y, 'r-');
+            plot(x, y, s);
 
         end
         

@@ -12,6 +12,9 @@ classdef VoronoiFortuneAlgo < handle
         circle_events = struct([]);      % the circle event queue by y- descend
         seg_list = struct([]);           % all of the edge list
         arc_list = struct([]);           % all the beach lines 
+        
+        edge_list = cell(0);            % store the site points => seg list
+        
     end
     
     methods
@@ -20,7 +23,9 @@ classdef VoronoiFortuneAlgo < handle
         % axis_opt:
         function VFA = VoronoiFortuneAlgo(site_points, axis_ratio)
             
-            site_points = unique(site_points, 'rows');
+            [site_points_sort, I, ~] = unique(site_points, 'rows', 'first');
+            [~, I] = sort(I);
+            site_points = site_points_sort(I, :);
             
             if size(site_points, 1)<2 || size(site_points, 2)~=2
                 disp('invalid input for site points, which must be m*2 array');
@@ -69,8 +74,8 @@ classdef VoronoiFortuneAlgo < handle
                 while ~isempty(VFA.circle_events)
                     if  VFA.circle_events(1).y>VFA.site_point_events(1).y
                        
-                       VFA.showFigure(VFA.circle_events(1).y, VFA.circle_events(1));
-                       waitforbuttonpress;
+                       %VFA.showFigure(VFA.circle_events(1).y, VFA.circle_events(1));
+                       %waitforbuttonpress;
                        
                        % on circle event
                        VFA.onCircleEvent(VFA.circle_events(1));
@@ -82,8 +87,8 @@ classdef VoronoiFortuneAlgo < handle
                 % on site event
                 VFA.onSiteEvent(VFA.site_point_events(1));
                 
-                VFA.showFigure(VFA.site_point_events(1).y, []);
-                waitforbuttonpress;
+                %VFA.showFigure(VFA.site_point_events(1).y, []);
+                %waitforbuttonpress;
                 
                 % remove the site point event
                 VFA.site_point_events(1) = [];
@@ -92,8 +97,8 @@ classdef VoronoiFortuneAlgo < handle
             % handle the left circle events
             while ~isempty(VFA.circle_events)
                 
-                VFA.showFigure(VFA.circle_events(1).y, VFA.circle_events(1));
-                waitforbuttonpress;
+                %VFA.showFigure(VFA.circle_events(1).y, VFA.circle_events(1));
+                %waitforbuttonpress;
                
                 % handle circle event
                VFA.onCircleEvent(VFA.circle_events(1));    
@@ -103,7 +108,7 @@ classdef VoronoiFortuneAlgo < handle
             VFA.finishLeftArcList();
             
             VFA.showFigure([], []);
-            waitforbuttonpress;
+            %waitforbuttonpress;
             
         end
         
@@ -210,8 +215,8 @@ classdef VoronoiFortuneAlgo < handle
             VFA.arc_list(index).seg0.end_p = c.center;
             VFA.arc_list(index).seg1.end_p = c.center;
 
-            VFA.pushSeg(VFA.arc_list(index).seg0);
-            VFA.pushSeg(VFA.arc_list(index).seg1);
+            VFA.pushSeg(VFA.arc_list(index).seg0, VFA.arc_list(index-1).p, VFA.arc_list(index).p);
+            VFA.pushSeg(VFA.arc_list(index).seg1, VFA.arc_list(index).p, VFA.arc_list(index+1).p);
 
             % remove the arc from list
             VFA.arc_list(index) = [];
@@ -331,7 +336,7 @@ classdef VoronoiFortuneAlgo < handle
 
                     VFA.arc_list(1).seg1.end_p = node;
 
-                    VFA.pushSeg(VFA.arc_list(1).seg1);    
+                    VFA.pushSeg(VFA.arc_list(1).seg1, VFA.arc_list(1).p, VFA.arc_list(2).p);    
                 end
 
                 % remove the arc
@@ -339,7 +344,7 @@ classdef VoronoiFortuneAlgo < handle
             end
         end
 
-        function pushSeg(VFA, seg)
+        function pushSeg(VFA, seg, p1, p2)
 
             % store the seg in seg list
             if isempty(VFA.seg_list)
@@ -347,6 +352,79 @@ classdef VoronoiFortuneAlgo < handle
             else
                 VFA.seg_list(length(VFA.seg_list)+1) = seg;
             end
+            
+            VFA.pushEdge(seg, p1);
+            VFA.pushEdge(seg, p2);
+                        
+        end
+        
+        function pushEdge(VFA, seg, p)
+            
+            index = VFA.findEdgeList(p);
+            if index~=0
+                VFA.edge_list{index, 2} = [VFA.edge_list{index, 2}; seg];
+            else
+                index = size(VFA.edge_list, 1)+1;
+                
+                VFA.edge_list{index, 1} = p;
+                VFA.edge_list{index, 2} = seg;
+            end
+        end
+        
+        function index = findEdgeList(VFA, p)
+            index = 0;
+            
+            if isempty(VFA.edge_list)
+                return ;
+            end
+            
+            for ii = 1 : size(VFA.edge_list, 1)
+                if VFA.edge_list{ii, 1}.x==p.x && VFA.edge_list{ii, 1}.y==p.y
+                    index = ii;
+                    return ;
+                end
+            end
+        end
+        
+        % way: 1 - max value; 2 - mean value
+        function radius = calculateRadius(VFA, p, way)
+            max_radius = 30000; % 30km
+            radius = 0;
+            
+            xmin = VFA.axis_scaling.xmin;
+            xmax = VFA.axis_scaling.xmax;
+            ymin = VFA.axis_scaling.ymin;
+            ymax = VFA.axis_scaling.ymax;
+            
+            index = VFA.findEdgeList(p);
+
+            if index~=0
+                dist = [];
+                for ii = 1 : size(VFA.edge_list{index, 2}, 1)
+                    points = [VFA.edge_list{index,2}(ii,1).start_p; ...
+                            VFA.edge_list{index,2}(ii,1).end_p ];
+                    
+                    
+                    for jj  = 1: length(points)
+                        distance = VFA.distance(p, points(jj));
+                        if distance>max_radius
+                            distance = max_radius;
+                        end
+
+                        dist = [dist; distance];
+                    end
+                                        
+                end
+
+                if way==1 % max value
+                    radius = max(dist);
+                elseif way==2 % mean value
+                    radius = mean(dist);
+                end
+                
+                
+            end
+
         end
         
         function showFigure(VFA, y, c)
@@ -606,10 +684,15 @@ classdef VoronoiFortuneAlgo < handle
         
         function drawCircle(center, radius)
  
-            x = linspace(center.x- radius, center.x + radius, 1000);
-            y1 = sqrt(radius.^2-(x-center.x).^2) + center.y;
-            y2 = -sqrt(radius.^2-(x-center.x).^2) + center.y;
-            plot(x, y1, 'b-', x, y2, 'b-');
+            angle = linspace(0, 2.*pi, 1000);
+            
+            plot(center.x + radius.*cos(angle), ...
+                center.y + radius.*sin(angle), 'b-');
+            
+            % x = linspace(center.x- radius, center.x + radius, 1000);
+            % y1 = sqrt(radius.^2-(x-center.x).^2) + center.y;
+            % y2 = -sqrt(radius.^2-(x-center.x).^2) + center.y;
+            % plot(x, y1, 'b-', x, y2, 'b-');
 
         end
         
@@ -631,6 +714,9 @@ classdef VoronoiFortuneAlgo < handle
 
         end
         
+        function dist = distance(p1, p2)
+            dist = sqrt((p1.x-p2.x).^2 + (p1.y-p2.y).^2);
+        end
     end
 end
 

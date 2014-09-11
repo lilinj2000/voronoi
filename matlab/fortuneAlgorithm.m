@@ -387,8 +387,8 @@ for ii=1:length(arc_list)
 end
 
 % for the specail point, which no intersect
-start_p.x = ymax;
-start_p.y = (arc_list(ii).p.x+p.x)./2;
+start_p.y = ymax;
+start_p.x = (arc_list(ii).p.x+p.x)./2;
 
 arc.seg0.start_p = start_p;
 
